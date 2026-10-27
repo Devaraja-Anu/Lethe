@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../schema/policy.schema.json
+# ==============================================================================
+# Lethe Retention Policy Reference Configuration
+# Documentation: See POLICY.md in the repository root for complete details.
+# ==============================================================================
+
+version: 1
+
+# Global defaults and safety circuit breakers across all entities
+defaults:
+  batch_size: 500              # Rows processed per transaction batch
+  max_rows_per_run: 50000      # Circuit breaker: max total rows to modify per run
+  max_percent_of_table: 20     # Circuit breaker: abort if planned rows exceed this %
+
+entities:
+  # ----------------------------------------------------------------------------
+  # Entity 1: User Accounts (Hard Deletion with Cascading Children & Legal Holds)
+  # ----------------------------------------------------------------------------
+  - name: users
+    table: users
+    primary_key: id
+    trigger: last_activity_at  # TIMESTAMPTZ column compared against cutoff
+    retention: 3y              # Retention period (supported units: d=days, m=months, y=years)
+    action: delete
+
+    # Dependent child tables deleted in the exact same transaction before parent
+    children:
+      - table: user_sessions
+        fk: user_id
+
+    # Trusted SQL predicate: rows where this evaluates to TRUE will NOT be deleted
+    hold_if: "kyc_verified = true"
+
+  # ----------------------------------------------------------------------------
+  # Entity 2: Customer Support Tickets (Atomic In-Place Anonymization)
+  # ----------------------------------------------------------------------------
+  - name: support_tickets
+    table: support_tickets
+    primary_key: id
+    trigger: closed_at
+    retention: 1y
+    action: anonymize
+
+    # Field redaction mapping (supports literals, null, and {id} token)
+    anonymize:
+      name: "REDACTED"
+      email: "redacted-{id}@invalid"
+      phone: null
+
+    # TIMESTAMPTZ column set to now() when anonymized to ensure run idempotency
+    anonymized_marker: anonymized_at

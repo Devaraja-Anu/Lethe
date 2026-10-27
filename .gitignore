@@ -1,0 +1,26 @@
+# Binaries
+bin/
+lethe
+lethe.exe
+*.exe
+
+# Go test / coverage artifacts
+*.test
+*.out
+coverage.html
+
+# Environment files
+.env
+.env.local
+
+# IDEs & OS metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Private contributor reference
+steps.md

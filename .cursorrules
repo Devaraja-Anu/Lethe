@@ -1,0 +1,8 @@
+# Cursor Rules for Lethe
+# Refer to AGENTS.md for full contributor and architectural guidelines.
+
+- Adhere to the division of labor in AGENTS.md: owner hand-writes the batch loop, sqlsafe, guards, policy schema, and adapter extraction.
+- Never write SQL using string concatenation with user input; always use parameterization and sqlsafe.
+- Dry-run is the default; mutations require explicit --apply.
+- Never log personal data or row contents (use log/slog with metadata only).
+- Keep dependencies minimal (pgx/v5, goccy/go-yaml, google/uuid, stdlib flag, slog).

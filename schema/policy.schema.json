@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/devaraja-anu/lethe/main/schema/policy.schema.json",
+  "title": "LetheRetentionPolicy",
+  "description": "Declarative data retention policy schema for Lethe",
+  "type": "object",
+  "required": ["version", "entities"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [1],
+      "description": "Policy schema version. Currently version 1 is supported."
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Global execution defaults and circuit breaker thresholds applied across all entities unless overridden.",
+      "additionalProperties": false,
+      "properties": {
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500,
+          "description": "Number of rows processed per transaction batch."
+        },
+        "max_rows_per_run": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 50000,
+          "description": "Circuit breaker: Maximum total rows an entity run is allowed to delete or anonymize before aborting."
+        },
+        "max_percent_of_table": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Circuit breaker: Abort if the planned eligible rows exceed this percentage of the total table row count."
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "description": "List of database entities and their retention policies.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "table", "primary_key", "trigger", "retention", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "description": "Unique logical name for this entity policy (used in audit logs, advisory lock hashes, and legal holds)."
+          },
+          "table": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "PostgreSQL table name to apply retention rules against."
+          },
+          "primary_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "Primary key column name (single-column primary key only in V1)."
+          },
+          "trigger": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "Timestamp column (TIMESTAMPTZ) evaluated against the retention cutoff (e.g. last_activity_at, closed_at)."
+          },
+          "retention": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*[dmy]$",
+            "description": "Retention window duration. Supported units: 'd' (days), 'm' (calendar months), 'y' (calendar years). Example: '3y', '90d', '18m'."
+          },
+          "action": {
+            "type": "string",
+            "enum": ["delete", "anonymize"],
+            "description": "Retention action to execute on expired records: 'delete' removes rows (and cascade children); 'anonymize' redacts fields in place."
+          },
+          "batch_size": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optional entity-level override for the batch size."
+          },
+          "children": {
+            "type": "array",
+            "description": "Dependent child tables to clean up prior to parent deletion in the exact same transaction.",
+            "items": {
+              "type": "object",
+              "required": ["table", "fk"],
+              "additionalProperties": false,
+              "properties": {
+                "table": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Child table name."
+                },
+                "fk": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Foreign key column in the child table referencing the parent's primary key."
+                }
+              }
+            }
+          },
+          "hold_if": {
+            "type": "string",
+            "description": "Optional raw SQL boolean expression. Rows where this predicate evaluates to TRUE are protected from retention. Must be trusted SQL."
+          },
+          "anonymize": {
+            "type": "object",
+            "description": "Field replacement map for 'anonymize' action. Values can be literals, null, or templates containing '{id}'.",
+            "additionalProperties": {
+              "type": ["string", "null"]
+            }
+          },
+          "anonymized_marker": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "TIMESTAMPTZ column set to now() when anonymized. Required when action is 'anonymize' to ensure idempotency."
+          }
+        }
+      }
+    }
+  }
+}
