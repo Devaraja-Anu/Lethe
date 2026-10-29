@@ -61,15 +61,28 @@ Per contributor guidelines, the project owner hand-writes high-risk core compone
   - Point-in-time consistency with single `runStart` UTC timestamp.
   - Successfully verified against edge cases in `testdata/fixtures.sql` (active holds, future holds, expired holds, released holds, KYC predicate, and NULL triggers).
 
+### Step 2: Safe Identifiers (`internal/sqlsafe`) (Completed)
+- **Implementation:** [internal/sqlsafe/sqlsafe.go](file:///C:/Programming/Projects/Lethe/internal/sqlsafe/sqlsafe.go).
+  - `Validate(s)`: Rejects empty strings, strings exceeding 63 bytes (`NAMEDATALEN - 1`), and non-alphanumeric characters outside `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+  - `Quote(s)`: Sanitizes single identifiers using `pgx.Identifier{s}.Sanitize()`.
+  - `QuoteQualified(parts...)`: Validates each segment and formats multi-part identifiers (e.g. `"public"."users"`).
+- **Adversarial Test Suite:** [internal/sqlsafe/sqlsafe_test.go](file:///C:/Programming/Projects/Lethe/internal/sqlsafe/sqlsafe_test.go).
+  - 48 subtests passing in 0.4s.
+  - Tested SQL injection vectors, double/single quote breakouts, comment delimiters, null bytes, control characters, unicode homoglyphs, and 63/64-byte boundaries.
+
 ---
 
-## 4. Current Active Milestone: Step 2 (`internal/sqlsafe`)
+## 4. Current Active Milestone: Step 3 (Policy types, parser, validation)
 
-- **Objective:** Human owner hand-writes identifier validation (allowed characters, length, non-empty) and quoting, using `pgx.Identifier.Sanitize()` as a building block.
+- **Objective:** Parse declarative YAML policy files into strongly-typed Go structs and enforce schema invariants.
 - **Invariants:**
-  - No SQL string concatenation exists outside `internal/sqlsafe`.
-  - Validates and sanitizes table names, column names, schema names.
-- **Agent Role for Step 2:** Provide a large list of hostile identifier strings for tests, plus adversarial review.
+  - Strict mode parsing: reject unknown or misspelled fields (`yaml.DisallowUnknownField()`).
+  - Reject composite primary keys with clear error messaging.
+  - Validate all table and column names using `internal/sqlsafe.Validate`.
+  - Validate retention strings (must be positive).
+- **Division of Labor:**
+  - **Human Owner:** Define the schema structure, field types, and validation rules.
+  - **Agent Role:** Go structs, YAML loader wiring, and human-friendly, line-numbered error wording.
 
 ---
 
