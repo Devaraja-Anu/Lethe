@@ -2,7 +2,10 @@ module github.com/devaraja-anu/lethe
 
 go 1.26.2
 
-require github.com/jackc/pgx/v5 v5.11.0
+require (
+	github.com/goccy/go-yaml v1.15.13
+	github.com/jackc/pgx/v5 v5.11.0
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

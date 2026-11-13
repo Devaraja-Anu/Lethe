@@ -70,19 +70,26 @@ Per contributor guidelines, the project owner hand-writes high-risk core compone
   - 48 subtests passing in 0.4s.
   - Tested SQL injection vectors, double/single quote breakouts, comment delimiters, null bytes, control characters, unicode homoglyphs, and 63/64-byte boundaries.
 
+### Step 3: Policy Types, Parser & Validation (Completed)
+- **Implementation:** Package [policy](file:///C:/Programming/Projects/Lethe/policy).
+  - [policy/types.go](file:///C:/Programming/Projects/Lethe/policy/types.go): `Policy`, `Defaults`, `EntityPolicy` (aliased as `Entity`), `Child`, and `Action`. Replaced terse `FK` with descriptive `ForeignKeyColumn`.
+  - [policy/parser.go](file:///C:/Programming/Projects/Lethe/policy/parser.go): `Load(io.Reader)` and `LoadFile(path)` with strict YAML parsing (`yaml.DisallowUnknownField()`) and line-numbered formatting.
+  - [policy/validate.go](file:///C:/Programming/Projects/Lethe/policy/validate.go): Comprehensive semantic validation covering single PK enforcement, identifier validation, retention format checks, template token checks, and action-specific rules.
+  - [policy/errors.go](file:///C:/Programming/Projects/Lethe/policy/errors.go): Context-aware breadcrumb formatting (`entity '...' -> field '...'`) and multi-error aggregation.
+- **Unit & Adversarial Tests:** [policy/policy_test.go](file:///C:/Programming/Projects/Lethe/policy/policy_test.go).
+  - Tests loading `examples/policy.yaml`, strict rejection of unknown fields/typos with line numbers, composite primary key rejections, SQL injection vectors, template tokens, action conflicts, and multi-error aggregation. All passing.
+
 ---
 
-## 4. Current Active Milestone: Step 3 (Policy types, parser, validation)
+## 4. Current Active Milestone: Step 4 (Retention duration and cutoff)
 
-- **Objective:** Parse declarative YAML policy files into strongly-typed Go structs and enforce schema invariants.
+- **Objective:** Parse retention strings into calendar duration structs (`Retention{Years, Months, Days}`) and calculate exact point-in-time cutoffs using `AddDate`.
 - **Invariants:**
-  - Strict mode parsing: reject unknown or misspelled fields (`yaml.DisallowUnknownField()`).
-  - Reject composite primary keys with clear error messaging.
-  - Validate all table and column names using `internal/sqlsafe.Validate`.
-  - Validate retention strings (must be positive).
+  - Avoid `time.Duration` nanosecond approximations to prevent calendar/leap-year drift (ADR 2).
+  - 3y really means 3 calendar years.
 - **Division of Labor:**
-  - **Human Owner:** Define the schema structure, field types, and validation rules.
-  - **Agent Role:** Go structs, YAML loader wiring, and human-friendly, line-numbered error wording.
+  - **Human Owner:** Write `ParseRetention` and `Cutoff(runStart, retention)` using `AddDate`.
+  - **Agent Role:** Table-driven test cases covering month-end and leap-day edge cases.
 
 ---
 
