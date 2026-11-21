@@ -10,7 +10,6 @@ import (
 
 var (
 	entityNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-	retentionRegex  = regexp.MustCompile(`^[1-9][0-9]*[dmy]$`)
 	templateRegex   = regexp.MustCompile(`\{([^}]*)\}`)
 )
 
@@ -147,7 +146,7 @@ func validateEntity(e *EntityPolicy, seenNames map[string]bool, errs *Validation
 			Field:   "retention",
 			Message: "retention duration is required",
 		})
-	} else if !retentionRegex.MatchString(e.Retention) {
+	} else if _, err := ParseRetention(e.Retention); err != nil {
 		*errs = append(*errs, ValidationError{
 			Entity:  e.Name,
 			Field:   "retention",

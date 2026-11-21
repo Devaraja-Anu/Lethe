@@ -79,17 +79,28 @@ Per contributor guidelines, the project owner hand-writes high-risk core compone
 - **Unit & Adversarial Tests:** [policy/policy_test.go](file:///C:/Programming/Projects/Lethe/policy/policy_test.go).
   - Tests loading `examples/policy.yaml`, strict rejection of unknown fields/typos with line numbers, composite primary key rejections, SQL injection vectors, template tokens, action conflicts, and multi-error aggregation. All passing.
 
+### Step 4: Retention Duration and Cutoff (Completed)
+- **Implementation:** [policy/retention.go](file:///C:/Programming/Projects/Lethe/policy/retention.go).
+  - `Retention{Years, Months, Days}`: Calendar-aware duration avoiding nanosecond float drift (ADR 2).
+  - `ParseRetention(s)`: Parses strictly positive durations with 'y', 'm', 'd' units; rejects zeros, negatives, units outside [dmy], whitespace, and compound units.
+  - `Cutoff(runStart, retention)` / `retention.Cutoff(runStart)`: Computes point-in-time boundary via `runStart.AddDate(-Years, -Months, -Days)`.
+  - `EntityPolicy.RetentionDuration()`: Helper method to retrieve parsed `Retention`.
+  - Wired into `policy.Validate()` to replace regex validation with semantic parsing.
+- **Unit & Boundary Tests:** [policy/retention_test.go](file:///C:/Programming/Projects/Lethe/policy/retention_test.go).
+  - Complete coverage of valid/invalid inputs, String round-tripping, leap years (Feb 29), month-end normalizations (e.g. March 31 -> March 2, May 31 -> May 1), and timezone preservation. All passing.
+
 ---
 
-## 4. Current Active Milestone: Step 4 (Retention duration and cutoff)
+## 4. Current Active Milestone: Step 5 (Embedded migrations and owned tables)
 
-- **Objective:** Parse retention strings into calendar duration structs (`Retention{Years, Months, Days}`) and calculate exact point-in-time cutoffs using `AddDate`.
+- **Objective:** Embedded migration runner for Lethe's internal tables (`lethe_holds`, `lethe_audit`) with version tracking table and advisory locking.
 - **Invariants:**
-  - Avoid `time.Duration` nanosecond approximations to prevent calendar/leap-year drift (ADR 2).
-  - 3y really means 3 calendar years.
+  - Forward-only migrations wrapped in a transaction per migration.
+  - Dedicated advisory lock during migration execution to prevent race conditions.
+  - Migration runner refuses to execute if applied schema version does not match engine expectation.
 - **Division of Labor:**
-  - **Human Owner:** Write `ParseRetention` and `Cutoff(runStart, retention)` using `AddDate`.
-  - **Agent Role:** Table-driven test cases covering month-end and leap-day edge cases.
+  - **Human Owner:** Migration runner core (`embed.FS`, version table check, transaction management, advisory lock) and migration SQL definitions.
+  - **Agent Role:** CLI wiring (`lethe migrate`), `--print` flag, error messaging, and integration tests.
 
 ---
 
